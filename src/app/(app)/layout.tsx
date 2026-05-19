@@ -9,12 +9,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [checked, setChecked] = useState(false)
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      router.push('/login')
-    } else {
+    const checkAuth = () => {
+      const token = localStorage.getItem('token')
+
+      if (!token) {
+        router.push('/login')
+        return
+      }
+
       setChecked(true)
     }
+
+    checkAuth()
   }, [router])
 
   if (!checked) {

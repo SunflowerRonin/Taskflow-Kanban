@@ -161,9 +161,17 @@ export default function DashboardPage() {
           <h2 className="font-semibold text-base-content">Distribuição por Status</h2>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
-              <Pie data={cardsPorStatus} dataKey="total" nameKey="status" cx="50%" cy="50%" outerRadius={80}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                {cardsPorStatus.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
+              <Pie
+                  data={cardsPorStatus}
+                  dataKey="total"
+                  nameKey="status"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  label={({ payload, percent }) =>
+                      `${payload?.status ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
+                  }
+              >
               </Pie>
               <Tooltip contentStyle={{ backgroundColor: 'var(--color-base-100)', border: 'none', borderRadius: '8px' }} />
             </PieChart>

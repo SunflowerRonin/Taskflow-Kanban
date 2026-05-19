@@ -17,7 +17,7 @@ import {
 import { getUsers } from '../../services/users'
 import { api } from '../../services/api'
 import { importFromBitrix, exportToBitrix } from '../../services/bitrix'
-import type { Card, Column, Priority } from '../../types/kanban'
+import {Card, Column, Priority, Status} from '../../types/kanban'
 import type { User } from '../../services/users'
 
 const COLUMNS: Column[] = [
@@ -116,27 +116,21 @@ function CardModal({ open, onClose, onSave, onDelete, onExport, editCard, column
   const [localCard, setLocalCard] = useState<Card | null>(null)
 
   useEffect(() => {
-    setLocalCard(editCard)
+    const timer = setTimeout(() => {
+      setLocalCard(editCard)
 
-    if (editCard) {
-      setTitle(editCard.title)
-      setDescription(editCard.description)
-      setAssigneeId(editCard.assigneeId || '')
-      setPriority(editCard.priority)
-      setDueDate(editCard.dueDate)
-      setColumnId(editCard.columnId)
-      setTags(editCard.tags || [])
-    } else {
-      setTitle('')
-      setDescription('')
-      setAssigneeId('')
-      setPriority('baixa')
-      setDueDate('')
-      setColumnId(columns[0]?.id || '')
-      setTags([])
-    }
+      if (editCard) {
+        setTitle(editCard.title)
+        setDescription(editCard.description || '')
+        setPriority(editCard.priority)
+        setAssigneeId(editCard.assignee || '')
+        setColumnId(editCard.columnId || '')
+        setDueDate(editCard.dueDate || '')
+        setTags(editCard.tags || [])
+      }
+    }, 0)
 
-    setConfirmarExclusao(false)
+    return () => clearTimeout(timer)
   }, [editCard, open])
 
   const handleAddTag = () => {
@@ -161,7 +155,7 @@ function CardModal({ open, onClose, onSave, onDelete, onExport, editCard, column
       dueDate,
       tags,
       columnId,
-      status: columnId as any,
+      status: columnId as Status,
       history: editCard?.history || [],
       attachments: localCard?.attachments || [],
     })
@@ -385,7 +379,11 @@ export default function KanbanBoard() {
     }
 
     const card = sourceCol.cards.find(c => c.id === activeId)!
-    const updatedCard = { ...card, columnId: destCol.id, status: destCol.id as any }
+    const updatedCard = {
+      ...card,
+      columnId: destCol.id,
+      status: destCol.id as Status,
+    }
     const overIsCard = destCol.cards.some(c => c.id === overId)
     const insertIndex = overIsCard ? destCol.cards.findIndex(c => c.id === overId) : destCol.cards.length
 
@@ -436,8 +434,11 @@ export default function KanbanBoard() {
       setImportResult(result)
       const cards = await getTasks()
       setColumns(COLUMNS.map(col => ({ ...col, cards: cards.filter(c => c.columnId === col.id) })))
-    } catch (e: any) {
-      alert(e.message || 'Erro ao importar do Bitrix24')
+    } catch (e: unknown) {
+      const message =
+          e instanceof Error ? e.message : 'Erro ao importar do Bitrix24'
+
+      alert(message)
     } finally {
       setImporting(false)
     }
@@ -447,8 +448,11 @@ export default function KanbanBoard() {
     try {
       const result = await exportToBitrix(id)
       alert(`Exportado com sucesso! ID Bitrix24: ${result.bitrixId}`)
-    } catch (e: any) {
-      alert(e.message || 'Erro ao exportar para Bitrix24')
+    } catch (e: unknown) {
+      const message =
+          e instanceof Error ? e.message : 'Erro ao exportar para Bitrix24'
+
+      alert(message)
     }
   }
 

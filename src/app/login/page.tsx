@@ -37,8 +37,11 @@ export default function LoginPage() {
     setServerError('')
     try {
       await login(email, password)
-    } catch (e: any) {
-      setServerError(e.message || 'E-mail ou senha incorretos')
+    } catch (error: unknown) {
+      const message =
+          error instanceof Error ? error.message : 'E-mail ou senha incorretos'
+
+      setServerError(message)
     } finally {
       setLoading(false)
     }

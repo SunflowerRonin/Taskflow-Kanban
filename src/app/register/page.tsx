@@ -37,13 +37,20 @@ export default function RegisterPage() {
   async function handleSubmit() {
     const errs = validate(name, email, password, confirm)
     setErrors(errs)
+
     if (Object.keys(errs).length > 0) return
+
     setLoading(true)
     setServerError('')
+
     try {
       await register(name, email, password)
-    } catch (e: any) {
-      setServerError(e.message || 'Erro ao cadastrar')
+      router.push('/kanban')
+    } catch (error: unknown) {
+      const message =
+          error instanceof Error ? error.message : 'Erro ao cadastrar'
+
+      setServerError(message)
     } finally {
       setLoading(false)
     }
