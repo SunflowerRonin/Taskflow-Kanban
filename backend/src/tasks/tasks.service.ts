@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
+import { InjectQueue } from '@nestjs/bull'
+import { Queue } from 'bull'
 import { Task, Status, Priority, Attachment } from './task.entity'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -10,6 +12,8 @@ export class TasksService {
   constructor(
     @InjectRepository(Task)
     private readonly repo: Repository<Task>,
+    @InjectQueue('mail')
+    private readonly mailQueue: Queue,
   ) {}
 
   async create(data: {
@@ -24,7 +28,16 @@ export class TasksService {
     const status = data.status || 'todo'
     const count = await this.repo.count({ where: { status } })
     const task = this.repo.create({ ...data, status, position: count, history: [], attachments: [] })
-    return this.repo.save(task)
+    const saved = await this.repo.save(task)
+
+    if (saved.assigneeId) {
+      await this.mailQueue.add('task-assigned', {
+        taskId: saved.id,
+        assigneeId: saved.assigneeId,
+      })
+    }
+
+    return saved
   }
 
   async findAll(): Promise<Task[]> {
@@ -50,8 +63,27 @@ export class TasksService {
       task.history = [...(task.history || []), historyEntry]
     }
 
+    const assigneeChanged = data.assigneeId && data.assigneeId !== task.assigneeId
+
     Object.assign(task, data)
-    return this.repo.save(task)
+    const saved = await this.repo.save(task)
+
+    if (statusChanged && saved.assigneeId) {
+      await this.mailQueue.add('status-changed', {
+        taskId: saved.id,
+        newStatus: saved.status,
+        assigneeId: saved.assigneeId,
+      })
+    }
+
+    if (assigneeChanged && saved.assigneeId) {
+      await this.mailQueue.add('task-assigned', {
+        taskId: saved.id,
+        assigneeId: saved.assigneeId,
+      })
+    }
+
+    return saved
   }
 
   async addAttachment(id: string, attachment: Attachment): Promise<Task> {

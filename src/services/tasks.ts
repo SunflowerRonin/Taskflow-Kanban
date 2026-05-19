@@ -1,4 +1,4 @@
-import { api } from './api'
+import { api, BASE_URL } from './api'
 import type { Card, Status } from '../types/kanban'
 
 type ApiTask = {
@@ -44,6 +44,7 @@ export async function createTask(data: Partial<Card>): Promise<Card> {
     priority: data.priority,
     dueDate: data.dueDate,
     tags: data.tags,
+    assigneeId: data.assigneeId,
     status: data.columnId || 'todo',
   })
   return mapToCard(task)
@@ -67,10 +68,10 @@ export async function deleteTask(id: string): Promise<void> {
 }
 
 export async function uploadAttachment(taskId: string, file: File): Promise<Card> {
-  const token = localStorage.getItem('token')
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
   const formData = new FormData()
   formData.append('file', file)
-  const res = await fetch(`http://localhost:3001/tasks/${taskId}/attachments`, {
+  const res = await fetch(`${BASE_URL}/tasks/${taskId}/attachments`, {
     method: 'POST',
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: formData,

@@ -42,6 +42,7 @@ services:
       DB_NAME: taskflow
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      CORS_ORIGIN: http://localhost:3000
     ports:
       - '3001:3001'
     depends_on:
@@ -60,6 +61,8 @@ services:
     build:
       context: ./src
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://backend:3001
     container_name: taskflow_frontend
     environment:
       NEXT_PUBLIC_API_URL: http://backend:3001

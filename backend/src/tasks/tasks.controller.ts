@@ -89,6 +89,11 @@ export class TasksController {
     return this.tasksService.findOverdue()
   }
 
+  @Put('reorder/batch')
+  reorder(@Body() dto: { ids: string[] }) {
+    return this.tasksService.reorder(dto.ids)
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.tasksService.findOne(id)

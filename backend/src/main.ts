@@ -6,7 +6,10 @@ import { join } from 'path'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
-  app.enableCors({ origin: 'http://localhost:3000' })
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN || '*',
+    credentials: true,
+  })
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }))
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' })
   await app.listen(3001)

@@ -15,7 +15,7 @@ import {
   uploadAttachment, removeAttachment,
 } from '../../services/tasks'
 import { getUsers } from '../../services/users'
-import { api } from '../../services/api'
+import { api, BASE_URL } from '../../services/api'
 import { importFromBitrix, exportToBitrix } from '../../services/bitrix'
 import {Card, Column, Priority, Status} from '../../types/kanban'
 import type { User } from '../../services/users'
@@ -286,7 +286,7 @@ function CardModal({ open, onClose, onSave, onDelete, onExport, editCard, column
                     const kb = Math.round(att.size / 1024)
                     return (
                       <div key={i} className="flex items-center justify-between bg-base-200 rounded-lg px-3 py-2 gap-2">
-                        <a href={`http://localhost:3001${att.url}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate flex-1">
+                        <a href={`${BASE_URL}${att.url}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate flex-1">
                           📎 {att.name} <span className="text-base-content/40">({kb}kb)</span>
                         </a>
                         <button onClick={() => handleRemoveAttachment(filename)} className="text-xs text-error hover:opacity-70 shrink-0 transition-opacity">✕</button>

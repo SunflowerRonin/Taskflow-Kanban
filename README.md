@@ -22,8 +22,8 @@ Aplicação fullstack de gerenciamento de tarefas com quadro Kanban, dashboard a
 
 ```bash
 # 1. Clone o repositório
-git clone https://github.com/seu-usuario/kanban-atomic.git
-cd kanban-atomic
+git clone https://github.com/SunflowerRonin/Taskflow-Kanban.git
+cd Taskflow-Kanban
 
 # 2. Configure as variáveis de ambiente do backend
 cp backend/.env.example backend/.env
@@ -88,17 +88,23 @@ REDIS_PORT=6379
 JWT_SECRET=troque_por_uma_chave_segura
 
 # E-mail (SMTP) — veja tutorial abaixo
-MAIL_HOST=smtp.mailtrap.io
+MAIL_HOST=sandbox.smtp.mailtrap.io
 MAIL_PORT=2525
 MAIL_USER=seu_usuario_mailtrap
 MAIL_PASS=sua_senha_mailtrap
+
+# Origem permitida no CORS — use * para liberar tudo em dev, ou defina o domínio em produção
+CORS_ORIGIN=http://localhost:3000
 ```
 
 ### `src/.env.local`
 
 ```env
+# URL do backend — não altere em desenvolvimento local
 NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
+
+> Copie o exemplo disponível: `cp src/.env.example src/.env.local`
 
 ---
 
@@ -128,13 +134,11 @@ O Mailtrap é um serviço gratuito de e-mail para desenvolvimento — ele captur
 
 1. Acesse [https://mailtrap.io](https://mailtrap.io) e crie uma conta gratuita
 
-2. No painel, clique em **Email Testing → Inboxes**
+2. No menu lateral, clique em **Email Testing → Sandboxes**
 
-3. Clique na inbox padrão (ou crie uma nova)
+3. Clique na sua sandbox (geralmente chamada **My Inbox**)
 
-4. Na aba **SMTP Settings**, selecione **Nodemailer** no dropdown de integração
-
-5. Copie as credenciais exibidas:
+4. Abra a aba **Integration**, clique em **SMTP** e copie as credenciais exibidas:
 
 ```
 Host: sandbox.smtp.mailtrap.io
@@ -143,7 +147,7 @@ Username: xxxxxxxxxxxxxxx
 Password: xxxxxxxxxxxxxxx
 ```
 
-6. Cole no seu `backend/.env`:
+5. Cole no seu `backend/.env`:
 
 ```env
 MAIL_HOST=sandbox.smtp.mailtrap.io
@@ -152,7 +156,7 @@ MAIL_USER=xxxxxxxxxxxxxxx
 MAIL_PASS=xxxxxxxxxxxxxxx
 ```
 
-7. Suba o backend — os e-mails enviados pela aplicação aparecerão na caixa de entrada do Mailtrap em tempo real.
+6. Suba o backend — os e-mails enviados pela aplicação aparecerão na caixa de entrada da sandbox em tempo real.
 
 > Em produção, substitua pelas credenciais do seu provedor real (SendGrid, SES, Resend, etc.)
 

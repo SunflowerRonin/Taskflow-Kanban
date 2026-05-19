@@ -162,16 +162,15 @@ export default function DashboardPage() {
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie
-                  data={cardsPorStatus}
-                  dataKey="total"
-                  nameKey="status"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  label={({ payload, percent }) =>
-                      `${payload?.status ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
-                  }
+                data={cardsPorStatus}
+                dataKey="total"
+                nameKey="status"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
               >
+                {cardsPorStatus.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
               </Pie>
               <Tooltip contentStyle={{ backgroundColor: 'var(--color-base-100)', border: 'none', borderRadius: '8px' }} />
             </PieChart>
@@ -188,7 +187,7 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={cardsPorResponsavel} layout="vertical">
                 <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--color-base-content)' }} />
-                <YAxis dataKey="nome" type="category" tick={{ fontSize: 11, fill: 'var(--color-base-content)' }} />
+                <YAxis dataKey="nome" type="category" tick={{ fontSize: 11, fill: 'var(--color-base-content)' }} width={80} />
                 <Tooltip contentStyle={{ backgroundColor: 'var(--color-base-100)', border: 'none', borderRadius: '8px' }} />
                 <Bar dataKey="total" fill="#6366f1" radius={[0, 6, 6, 0]} />
               </BarChart>
