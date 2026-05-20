@@ -22,7 +22,7 @@ function mapToCard(task: ApiTask): Card {
     description: task.description || '',
     priority: task.priority,
     assignee: task.assignee?.name || '',
-    assigneeId: task.assigneeId,
+    assigneeId: task.assigneeId || task.assignee?.id || '',
     dueDate: task.dueDate || '',
     tags: task.tags || [],
     columnId: task.status,
@@ -58,7 +58,7 @@ export async function updateTask(id: string, data: Partial<Card>): Promise<Card>
     dueDate: data.dueDate,
     tags: data.tags,
     status: data.columnId ?? data.status,
-    assigneeId: data.assigneeId,
+    assigneeId: data.assigneeId ?? '',
   })
   return mapToCard(task)
 }

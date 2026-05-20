@@ -10,7 +10,7 @@ async function bootstrap() {
     origin: process.env.CORS_ORIGIN || '*',
     credentials: true,
   })
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }))
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, skipMissingProperties: true }))
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' })
   await app.listen(3001)
   console.log('Backend rodando em http://localhost:3001')

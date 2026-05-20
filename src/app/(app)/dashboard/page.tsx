@@ -66,10 +66,12 @@ export default function DashboardPage() {
     return true
   })
 
-  const cardsPorStatus = ['todo', 'in-progress', 'review', 'done'].map(status => ({
-    status: STATUS_LABELS[status],
-    total: filtradas.filter(t => t.status === status).length,
-  }))
+  const cardsPorStatus = ['todo', 'in-progress', 'review', 'done']
+    .map(status => ({
+      status: STATUS_LABELS[status],
+      total: filtradas.filter(t => t.status === status).length,
+    }))
+    .filter(item => item.total > 0)
 
   const responsavelMap: Record<string, number> = {}
   filtradas.forEach(t => {
@@ -159,22 +161,38 @@ export default function DashboardPage() {
 
         <div className="bg-base-200 rounded-xl p-4 flex flex-col gap-4">
           <h2 className="font-semibold text-base-content">Distribuição por Status</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie
-                data={cardsPorStatus}
-                dataKey="total"
-                nameKey="status"
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-              >
-                {cardsPorStatus.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
-              </Pie>
-              <Tooltip contentStyle={{ backgroundColor: 'var(--color-base-100)', border: 'none', borderRadius: '8px' }} />
-            </PieChart>
-          </ResponsiveContainer>
+          {cardsPorStatus.length === 0 ? (
+            <p className="text-sm text-base-content/50">Nenhuma tarefa ainda.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={cardsPorStatus}
+                  dataKey="total"
+                  nameKey="status"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={75}
+                  label={({ percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
+                  labelLine={false}
+                >
+                  {cardsPorStatus.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Tooltip
+                  formatter={(value, name) => [value, name]}
+                  contentStyle={{ backgroundColor: 'var(--color-base-100)', border: 'none', borderRadius: '8px' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+          <div className="flex flex-wrap gap-2 justify-center">
+            {cardsPorStatus.map((item, i) => (
+              <div key={item.status} className="flex items-center gap-1">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                <span className="text-xs text-base-content/70">{item.status}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

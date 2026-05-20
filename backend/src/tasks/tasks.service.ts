@@ -1,8 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
-import { InjectQueue } from '@nestjs/bull'
-import { Queue } from 'bull'
 import { Task, Status, Priority, Attachment } from './task.entity'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -12,8 +10,6 @@ export class TasksService {
   constructor(
     @InjectRepository(Task)
     private readonly repo: Repository<Task>,
-    @InjectQueue('mail')
-    private readonly mailQueue: Queue,
   ) {}
 
   async create(data: {
@@ -30,22 +26,22 @@ export class TasksService {
     const task = this.repo.create({ ...data, status, position: count, history: [], attachments: [] })
     const saved = await this.repo.save(task)
 
-    if (saved.assigneeId) {
-      await this.mailQueue.add('task-assigned', {
-        taskId: saved.id,
-        assigneeId: saved.assigneeId,
-      })
-    }
-
-    return saved
+    // rebusca com o relation de assignee populado
+    return this.findOne(saved.id)
   }
 
   async findAll(): Promise<Task[]> {
-    return this.repo.find({ order: { status: 'ASC', position: 'ASC' } })
+    return this.repo.find({
+      order: { status: 'ASC', position: 'ASC' },
+      relations: ['assignee'],
+    })
   }
 
   async findOne(id: string): Promise<Task> {
-    const task = await this.repo.findOne({ where: { id } })
+    const task = await this.repo.findOne({
+      where: { id },
+      relations: ['assignee'],
+    })
     if (!task) throw new NotFoundException('Task não encontrada')
     return task
   }
@@ -63,33 +59,24 @@ export class TasksService {
       task.history = [...(task.history || []), historyEntry]
     }
 
-    const assigneeChanged = data.assigneeId && data.assigneeId !== task.assigneeId
+    const { assigneeId, ...rest } = data
+    Object.assign(task, rest)
 
-    Object.assign(task, data)
+    // string vazia = remover responsável, string com valor = atribuir
+    if (assigneeId !== undefined) {
+      task.assigneeId = (assigneeId && assigneeId.length > 0) ? assigneeId : null as any
+      task.assignee = null as any
+    }
+
     const saved = await this.repo.save(task)
-
-    if (statusChanged && saved.assigneeId) {
-      await this.mailQueue.add('status-changed', {
-        taskId: saved.id,
-        newStatus: saved.status,
-        assigneeId: saved.assigneeId,
-      })
-    }
-
-    if (assigneeChanged && saved.assigneeId) {
-      await this.mailQueue.add('task-assigned', {
-        taskId: saved.id,
-        assigneeId: saved.assigneeId,
-      })
-    }
-
-    return saved
+    return this.findOne(saved.id)
   }
 
   async addAttachment(id: string, attachment: Attachment): Promise<Task> {
     const task = await this.findOne(id)
     task.attachments = [...(task.attachments || []), attachment]
-    return this.repo.save(task)
+    const saved = await this.repo.save(task)
+    return this.findOne(saved.id)
   }
 
   async removeAttachment(id: string, filename: string): Promise<Task> {
@@ -102,7 +89,8 @@ export class TasksService {
       fs.unlinkSync(filePath)
     }
 
-    return this.repo.save(task)
+    const saved = await this.repo.save(task)
+    return this.findOne(saved.id)
   }
 
   async reorder(ids: string[]): Promise<void> {

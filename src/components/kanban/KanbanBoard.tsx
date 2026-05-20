@@ -15,10 +15,12 @@ import {
   uploadAttachment, removeAttachment,
 } from '../../services/tasks'
 import { getUsers } from '../../services/users'
-import { api, BASE_URL } from '../../services/api'
+import { api } from '../../services/api'
 import { importFromBitrix, exportToBitrix } from '../../services/bitrix'
-import {Card, Column, Priority, Status} from '../../types/kanban'
+import type { Card, Column, Priority, Status } from '../../types/kanban'
 import type { User } from '../../services/users'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 const COLUMNS: Column[] = [
   { id: 'todo', title: 'A Fazer', cards: [] },
@@ -34,59 +36,96 @@ const priorityStyles: Record<Priority, string> = {
 }
 
 function KanbanCard({ card, onEdit, overlay = false }: {
-  card: Card; onEdit: (card: Card) => void; overlay?: boolean
+  card: Card
+  onEdit: (card: Card) => void
+  overlay?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id })
+
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      onDoubleClick={() => !overlay && onEdit(card)}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging && !overlay ? 0.3 : 1 }}
-      className="bg-base-100 rounded-xl border border-base-300 shadow-sm select-none p-3 flex flex-col gap-2 cursor-grab active:cursor-grabbing"
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging && !overlay ? 0.3 : 1,
+      }}
+      className="relative group bg-base-100 rounded-xl border border-base-300 shadow-sm select-none"
     >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="font-medium text-base-content text-sm">{card.title}</h3>
-        <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${priorityStyles[card.priority]}`}>{card.priority}</span>
-      </div>
-      {card.description && (
-        <p className="text-xs text-base-content/60 line-clamp-2">{card.description.replace(/\[bitrix:\d+\]\s?/, '')}</p>
-      )}
-      <div className="flex flex-wrap gap-1">
-        {card.tags?.map(tag => (
-          <span key={tag} className="text-xs px-2 py-0.5 rounded-full border border-base-content/30 text-base-content/60">{tag}</span>
-        ))}
-      </div>
-      <div className="flex items-center justify-between mt-1">
-        <div className="flex items-center gap-1">
-          <div className="w-6 h-6 rounded-full bg-primary text-primary-content flex items-center justify-center text-xs font-bold">
-            {card.assignee?.[0] || '?'}
+      <div
+        {...listeners}
+        {...attributes}
+        className="p-3 flex flex-col gap-2 cursor-grab active:cursor-grabbing"
+      >
+        <div className="flex items-start justify-between gap-2 pr-6">
+          <h3 className="font-medium text-base-content text-sm">{card.title}</h3>
+          <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${priorityStyles[card.priority]}`}>
+            {card.priority}
+          </span>
+        </div>
+
+        {card.description && (
+          <p className="text-xs text-base-content/60 line-clamp-2">
+            {card.description.replace(/\[bitrix:\d+\]\s?/, '')}
+          </p>
+        )}
+
+        <div className="flex flex-wrap gap-1">
+          {card.tags?.map(tag => (
+            <span key={tag} className="text-xs px-2 py-0.5 rounded-full border border-base-content/30 text-base-content/60">
+              {tag}
+            </span>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between mt-1">
+          <div className="flex items-center gap-1">
+            <div className="w-6 h-6 rounded-full bg-primary text-primary-content flex items-center justify-center text-xs font-bold">
+              {card.assignee?.[0]?.toUpperCase() || '?'}
+            </div>
+            {card.assignee && <span className="text-xs text-base-content/50">{card.assignee}</span>}
           </div>
-          {card.assignee && <span className="text-xs text-base-content/50">{card.assignee}</span>}
-        </div>
-        <div className="flex items-center gap-2">
-          {card.attachments && card.attachments.length > 0 && (
-            <span className="text-xs text-base-content/40">📎 {card.attachments.length}</span>
-          )}
-          <span className="text-xs text-base-content/50">{card.dueDate}</span>
+          <div className="flex items-center gap-2">
+            {card.attachments && card.attachments.length > 0 && (
+              <span className="text-xs text-base-content/40">📎 {card.attachments.length}</span>
+            )}
+            {card.dueDate && <span className="text-xs text-base-content/50">{card.dueDate}</span>}
+          </div>
         </div>
       </div>
+
+      {!overlay && (
+        <button
+          onClick={() => onEdit(card)}
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded flex items-center justify-center bg-base-200 hover:bg-primary hover:text-primary-content text-base-content/50 text-xs"
+          title="Editar card"
+        >
+          ✏
+        </button>
+      )}
     </div>
   )
 }
 
 function KanbanColumn({ column, onEdit }: { column: Column; onEdit: (card: Card) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
+
   return (
-    <div ref={setNodeRef} className={`flex flex-col rounded-xl p-3 w-72 shrink-0 transition-colors ${isOver ? 'bg-base-300' : 'bg-base-200'}`}>
+    <div
+      ref={setNodeRef}
+      className={`flex flex-col rounded-xl p-3 w-72 shrink-0 transition-colors ${isOver ? 'bg-base-300' : 'bg-base-200'}`}
+    >
       <div className="flex items-center justify-between mb-3 px-1">
         <h2 className="font-semibold text-base-content">{column.title}</h2>
-        <span className="text-xs px-2 py-0.5 rounded-full bg-base-300 text-base-content/60">{column.cards.length}</span>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-base-300 text-base-content/60">
+          {column.cards.length}
+        </span>
       </div>
       <SortableContext items={column.cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-2 min-h-24 rounded-lg p-1">
-          {column.cards.map(card => <KanbanCard key={card.id} card={card} onEdit={onEdit} />)}
+          {column.cards.map(card => (
+            <KanbanCard key={card.id} card={card} onEdit={onEdit} />
+          ))}
         </div>
       </SortableContext>
     </div>
@@ -116,24 +155,30 @@ function CardModal({ open, onClose, onSave, onDelete, onExport, editCard, column
   const [localCard, setLocalCard] = useState<Card | null>(null)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLocalCard(editCard)
+    setLocalCard(editCard)
 
-      if (editCard) {
-        setTitle(editCard.title)
-        setDescription(editCard.description || '')
-        setPriority(editCard.priority)
-        setAssigneeId(editCard.assignee || '')
-        setColumnId(editCard.columnId || '')
-        setDueDate(editCard.dueDate || '')
-        setTags(editCard.tags || [])
-      }
-    }, 0)
+    if (editCard) {
+      setTitle(editCard.title)
+      setDescription(editCard.description)
+      setAssigneeId(editCard.assigneeId || '')
+      setPriority(editCard.priority)
+      setDueDate(editCard.dueDate)
+      setColumnId(editCard.columnId)
+      setTags(editCard.tags || [])
+    } else {
+      setTitle('')
+      setDescription('')
+      setAssigneeId('')
+      setPriority('baixa')
+      setDueDate('')
+      setColumnId(columns[0]?.id || '')
+      setTags([])
+    }
 
-    return () => clearTimeout(timer)
+    setConfirmarExclusao(false)
   }, [editCard, open])
 
-  const handleAddTag = () => {
+  const addTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
       setTags([...tags, tagInput.trim()])
       setTagInput('')
@@ -189,38 +234,62 @@ function CardModal({ open, onClose, onSave, onDelete, onExport, editCard, column
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-base-100 rounded-2xl shadow-2xl w-full max-w-md flex flex-col z-10 max-h-[90vh]">
+
         <div className="p-6 pb-4 border-b border-base-300 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-base-content">{editCard ? 'Editar Card' : 'Novo Card'}</h2>
+          <h2 className="text-lg font-bold text-base-content">
+            {editCard ? 'Editar Card' : 'Novo Card'}
+          </h2>
           {editCard?.id && onExport && (
             <button
               onClick={() => onExport(editCard.id)}
               className="text-xs px-3 py-1.5 rounded-lg bg-base-200 hover:bg-base-300 text-base-content/70 transition-colors"
-            >↑ Bitrix24</button>
+            >
+              ↑ Bitrix24
+            </button>
           )}
         </div>
 
         <div className="overflow-y-auto flex-1 px-6 py-4 flex flex-col gap-4">
+
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-base-content/60 uppercase tracking-wide">Título *</label>
-            <input className="w-full rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm outline-none focus:border-primary" placeholder="Título" value={title} onChange={e => setTitle(e.target.value)} />
+            <input
+              className="w-full rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm outline-none focus:border-primary"
+              placeholder="Título"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+            />
           </div>
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-base-content/60 uppercase tracking-wide">Descrição</label>
-            <textarea className="w-full rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm resize-none outline-none focus:border-primary" rows={2} value={description} onChange={e => setDescription(e.target.value)} />
+            <textarea
+              className="w-full rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm resize-none outline-none focus:border-primary"
+              rows={2}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+            />
           </div>
 
           <div className="flex gap-3">
             <div className="flex flex-col gap-1 flex-1">
               <label className="text-xs font-semibold text-base-content/60 uppercase tracking-wide">Responsável</label>
-              <select className="w-full rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm outline-none focus:border-primary" value={assigneeId} onChange={e => setAssigneeId(e.target.value)}>
+              <select
+                className="w-full rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                value={assigneeId}
+                onChange={e => setAssigneeId(e.target.value)}
+              >
                 <option value="">Sem responsável</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
             <div className="flex flex-col gap-1 flex-1">
               <label className="text-xs font-semibold text-base-content/60 uppercase tracking-wide">Prioridade</label>
-              <select className="w-full rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm outline-none focus:border-primary" value={priority} onChange={e => setPriority(e.target.value as Priority)}>
+              <select
+                className="w-full rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                value={priority}
+                onChange={e => setPriority(e.target.value as Priority)}
+              >
                 <option value="baixa">Baixa</option>
                 <option value="média">Média</option>
                 <option value="alta">Alta</option>
@@ -231,11 +300,20 @@ function CardModal({ open, onClose, onSave, onDelete, onExport, editCard, column
           <div className="flex gap-3">
             <div className="flex flex-col gap-1 flex-1">
               <label className="text-xs font-semibold text-base-content/60 uppercase tracking-wide">Data de entrega</label>
-              <input type="date" className="w-full rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm outline-none focus:border-primary" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+              <input
+                type="date"
+                className="w-full rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+              />
             </div>
             <div className="flex flex-col gap-1 flex-1">
               <label className="text-xs font-semibold text-base-content/60 uppercase tracking-wide">Coluna</label>
-              <select className="w-full rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm outline-none focus:border-primary" value={columnId} onChange={e => setColumnId(e.target.value)}>
+              <select
+                className="w-full rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                value={columnId}
+                onChange={e => setColumnId(e.target.value)}
+              >
                 {columns.map(col => <option key={col.id} value={col.id}>{col.title}</option>)}
               </select>
             </div>
@@ -244,12 +322,22 @@ function CardModal({ open, onClose, onSave, onDelete, onExport, editCard, column
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-base-content/60 uppercase tracking-wide">Tags</label>
             <div className="flex gap-2">
-              <input className="flex-1 rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm outline-none focus:border-primary" value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddTag()} placeholder="Adicionar tag" />
-              <button onClick={handleAddTag} className="px-3 py-2 rounded-lg bg-base-300 hover:bg-base-200 text-sm transition-colors">+</button>
+              <input
+                className="flex-1 rounded-lg border border-base-300 bg-base-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addTag()}
+                placeholder="Adicionar tag"
+              />
+              <button onClick={addTag} className="px-3 py-2 rounded-lg bg-base-300 hover:bg-base-200 text-sm transition-colors">+</button>
             </div>
             <div className="flex flex-wrap gap-1 mt-1">
               {tags.map(tag => (
-                <span key={tag} onClick={() => setTags(tags.filter(t => t !== tag))} className="text-xs px-2 py-0.5 rounded-full border border-base-content/30 text-base-content/60 cursor-pointer hover:text-error transition-colors">
+                <span
+                  key={tag}
+                  onClick={() => setTags(tags.filter(t => t !== tag))}
+                  className="text-xs px-2 py-0.5 rounded-full border border-base-content/30 text-base-content/60 cursor-pointer hover:text-error transition-colors"
+                >
                   {tag} ×
                 </span>
               ))}
@@ -286,10 +374,18 @@ function CardModal({ open, onClose, onSave, onDelete, onExport, editCard, column
                     const kb = Math.round(att.size / 1024)
                     return (
                       <div key={i} className="flex items-center justify-between bg-base-200 rounded-lg px-3 py-2 gap-2">
-                        <a href={`${BASE_URL}${att.url}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate flex-1">
+                        <a
+                          href={`${API_URL}${att.url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline truncate flex-1"
+                        >
                           📎 {att.name} <span className="text-base-content/40">({kb}kb)</span>
                         </a>
-                        <button onClick={() => handleRemoveAttachment(filename)} className="text-xs text-error hover:opacity-70 shrink-0 transition-opacity">✕</button>
+                        <button
+                          onClick={() => handleRemoveAttachment(filename)}
+                          className="text-xs text-error hover:opacity-70 shrink-0 transition-opacity"
+                        >✕</button>
                       </div>
                     )
                   })}
@@ -299,27 +395,46 @@ function CardModal({ open, onClose, onSave, onDelete, onExport, editCard, column
               )}
             </div>
           )}
+
         </div>
 
         <div className="p-6 pt-4 border-t border-base-300 flex gap-2 justify-between">
           {editCard && (
             <div>
               {!confirmarExclusao ? (
-                <button onClick={() => setConfirmarExclusao(true)} className="px-4 py-2 rounded-lg bg-error/10 text-error text-sm hover:bg-error/20 transition-colors">Excluir</button>
+                <button
+                  onClick={() => setConfirmarExclusao(true)}
+                  className="px-4 py-2 rounded-lg bg-error/10 text-error text-sm hover:bg-error/20 transition-colors"
+                >
+                  Excluir
+                </button>
               ) : (
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-error">Tem certeza?</span>
-                  <button onClick={() => { onDelete(editCard.id); onClose() }} className="px-3 py-1.5 rounded-lg bg-error text-error-content text-xs font-medium">Sim</button>
-                  <button onClick={() => setConfirmarExclusao(false)} className="px-3 py-1.5 rounded-lg bg-base-300 text-base-content text-xs">Não</button>
+                  <button
+                    onClick={() => { onDelete(editCard.id); onClose() }}
+                    className="px-3 py-1.5 rounded-lg bg-error text-error-content text-xs font-medium"
+                  >Sim</button>
+                  <button
+                    onClick={() => setConfirmarExclusao(false)}
+                    className="px-3 py-1.5 rounded-lg bg-base-300 text-base-content text-xs"
+                  >Não</button>
                 </div>
               )}
             </div>
           )}
           <div className="flex gap-2 ml-auto">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg bg-base-300 text-sm hover:bg-base-200 transition-colors">Cancelar</button>
-            <button onClick={handleSave} className="px-4 py-2 rounded-lg bg-primary text-primary-content text-sm font-medium hover:opacity-90 transition-opacity">Salvar</button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg bg-base-300 text-sm hover:bg-base-200 transition-colors"
+            >Cancelar</button>
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-content text-sm font-medium hover:opacity-90 transition-opacity"
+            >Salvar</button>
           </div>
         </div>
+
       </div>
     </div>
   )
@@ -364,6 +479,7 @@ export default function KanbanBoard() {
     const activeId = String(active.id)
     const overId = String(over.id)
     if (activeId === overId) return
+
     const sourceCol = findColumn(activeId)
     const destCol = findColumn(overId)
     if (!sourceCol || !destCol) return
@@ -373,19 +489,19 @@ export default function KanbanBoard() {
       const newIndex = sourceCol.cards.findIndex(c => c.id === overId)
       if (oldIndex === -1 || newIndex === -1) return
       const reordered = arrayMove(sourceCol.cards, oldIndex, newIndex)
-      setColumns(prev => prev.map(col => col.id === sourceCol.id ? { ...col, cards: reordered } : col))
-      await api.put('tasks/reorder/batch', { ids: reordered.map(c => c.id) })
+      setColumns(prev => prev.map(col =>
+        col.id === sourceCol.id ? { ...col, cards: reordered } : col
+      ))
+      await api.put('/tasks/reorder/batch', { ids: reordered.map(c => c.id) })
       return
     }
 
     const card = sourceCol.cards.find(c => c.id === activeId)!
-    const updatedCard = {
-      ...card,
-      columnId: destCol.id,
-      status: destCol.id as Status,
-    }
+    const updatedCard = { ...card, columnId: destCol.id, status: destCol.id as Status }
     const overIsCard = destCol.cards.some(c => c.id === overId)
-    const insertIndex = overIsCard ? destCol.cards.findIndex(c => c.id === overId) : destCol.cards.length
+    const insertIndex = overIsCard
+      ? destCol.cards.findIndex(c => c.id === overId)
+      : destCol.cards.length
 
     setColumns(prev => prev.map(col => {
       if (col.id === sourceCol.id) return { ...col, cards: col.cards.filter(c => c.id !== activeId) }
@@ -396,6 +512,7 @@ export default function KanbanBoard() {
       }
       return col
     }))
+
     await updateTask(activeId, updatedCard)
   }
 
@@ -423,7 +540,10 @@ export default function KanbanBoard() {
 
   const handleDeleteCard = async (cardId: string) => {
     await deleteTask(cardId)
-    setColumns(prev => prev.map(col => ({ ...col, cards: col.cards.filter(c => c.id !== cardId) })))
+    setColumns(prev => prev.map(col => ({
+      ...col,
+      cards: col.cards.filter(c => c.id !== cardId),
+    })))
   }
 
   const handleImportBitrix = async () => {
@@ -433,12 +553,12 @@ export default function KanbanBoard() {
       const result = await importFromBitrix()
       setImportResult(result)
       const cards = await getTasks()
-      setColumns(COLUMNS.map(col => ({ ...col, cards: cards.filter(c => c.columnId === col.id) })))
-    } catch (e: unknown) {
-      const message =
-          e instanceof Error ? e.message : 'Erro ao importar do Bitrix24'
-
-      alert(message)
+      setColumns(COLUMNS.map(col => ({
+        ...col,
+        cards: cards.filter(c => c.columnId === col.id),
+      })))
+    } catch (e: any) {
+      alert(e.message || 'Erro ao importar do Bitrix24')
     } finally {
       setImporting(false)
     }
@@ -448,11 +568,8 @@ export default function KanbanBoard() {
     try {
       const result = await exportToBitrix(id)
       alert(`Exportado com sucesso! ID Bitrix24: ${result.bitrixId}`)
-    } catch (e: unknown) {
-      const message =
-          e instanceof Error ? e.message : 'Erro ao exportar para Bitrix24'
-
-      alert(message)
+    } catch (e: any) {
+      alert(e.message || 'Erro ao exportar para Bitrix24')
     }
   }
 
@@ -474,6 +591,7 @@ export default function KanbanBoard() {
         columns={columns.map(c => ({ id: c.id, title: c.title }))}
         users={users}
       />
+
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-base-content">Quadro Kanban</h1>
         <div className="flex items-center gap-2 flex-wrap">
@@ -497,10 +615,20 @@ export default function KanbanBoard() {
           </button>
         </div>
       </div>
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
         <div className="flex gap-4 overflow-x-auto pb-4">
           {columns.map(column => (
-            <KanbanColumn key={column.id} column={column} onEdit={(card) => { setEditCard(card); setModalOpen(true) }} />
+            <KanbanColumn
+              key={column.id}
+              column={column}
+              onEdit={(card) => { setEditCard(card); setModalOpen(true) }}
+            />
           ))}
         </div>
         <DragOverlay>
